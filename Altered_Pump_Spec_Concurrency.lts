@@ -1,5 +1,5 @@
 //  Group 9
-//  Authors: Zack Coker, Alex Duda, An Wu, Mauricio Soto-Gonzoles, and Shurui Zhou
+//  Authors: Zack Coker, Alex Duda, An Wu, Mauricio Soto, and Shurui Zhou
 //
 // 17-651: FSP model of a simple infusion pump
 //
@@ -311,6 +311,9 @@ LINE_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseType:DispenseTy
     |
     flow_unblocked -> LINE_DISPENSE[unitLock][dispenseType]
 ).
+
+progress IT_WILL_EVENTUALLY_PUMP_MEDICINE_AFTER_TURNED_ON = {turn_on,dispense_main_med_flow}
+progress AFTER_PUMPING_MEDICINE_YOU_WILL_EVENTUALLY_RUN_OUT_OF_MED = {dispense_main_med_flow,medicine_is_empty }
 
 
 
