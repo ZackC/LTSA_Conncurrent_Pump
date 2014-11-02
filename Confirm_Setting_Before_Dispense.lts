@@ -1,5 +1,5 @@
 //  Group 9
-//  Authors: Zack Coker, Alex Duda, An Wu, Mauricio Soto, and Shurui Zhou
+//  Authors: Zack Coker, Alex Duda, An Wu, Mauricio Soto-Gonzoles, and Shurui Zhou
 //
 // 17-651: FSP model of a simple infusion pump
 //
@@ -19,7 +19,7 @@
 //
 menu UserControlMenu = {
      //Pump interactions
-     plug_in, unplug, attempt_turn_on, turn_off,  accept_self_test, decline_self_test, lock_unit, unlock_unit,
+     plug_in, unplug, turn_on, turn_off,  accept_self_test, decline_self_test, lock_unit, unlock_unit,
 
     //Line interactions
     l.[1..NumLines].set_rate, l.[1..NumLines].change_rate, l.[1..NumLines].enter_value, l.[1..NumLines].clear_rate, 
@@ -88,16 +88,17 @@ range DispenseType = BOLUS .. MAIN_MEDS
 // Process Definitions
 //=====================
 
-PUMP = POWER_OFF,
+PUMP = UNPLUGGED,
 
+UNPLUGGED =
+(
+    plug_in -> POWER_OFF
+),
 
 POWER_OFF = 
 (
-    attempt_turn_on -> (successful_power_check -> UPDATE |
-                unsuccessful_power_check -> POWER_OFF |
-                system_powers_off -> PUMP) |
-    system_powers_off -> PUMP |
-    turn_off -> PUMP
+    turn_on -> UPDATE |
+    unplug -> UNPLUGGED
     
 ),
 
@@ -105,8 +106,8 @@ POWER_OFF =
 UPDATE = 
 (
     attempt_library_update -> SELF_TEST_DECISION |
-    system_powers_off -> PUMP |
-    turn_off -> PUMP
+    unplug -> UNPLUGGED |
+    turn_off -> POWER_OFF
 ),
 
 //allows the user to select if the machine safety check occurs
@@ -114,8 +115,8 @@ SELF_TEST_DECISION =
 (
   accept_self_test -> SELF_TEST |
   decline_self_test -> START_PUMP_DISPENSE |
-  system_powers_off -> PUMP |
-    turn_off -> PUMP
+  unplug -> UNPLUGGED |
+  turn_off -> POWER_OFF
 ),
 
 //returns the result of the machine safety check
@@ -123,49 +124,48 @@ SELF_TEST =
 (
    confirmed_self_test ->  START_PUMP_DISPENSE|
    failed_self_test -> display_error_pump -> sound_alarm_pump -> SELF_ERROR_STATE | 
-   system_powers_off -> PUMP |
-    turn_off -> PUMP
+   unplug -> UNPLUGGED |
+   turn_off -> POWER_OFF
 ),
 
 //the error state of the safety check - rings the alarm until the machine is turned off
 SELF_ERROR_STATE =
 (
     sound_alarm_pump -> SELF_ERROR_STATE |
-    system_powers_off -> PUMP |
-    turn_off -> PUMP 
+    unplug -> UNPLUGGED |
+    turn_off -> POWER_OFF 
     
 ),
 
 
 START_PUMP_DISPENSE =
 (
-   start_lines -> (system_powers_off -> PUMP |
-                    turn_off -> PUMP |
-                   lock_unit -> LOCKED_PUMP) 
+   start_lines -> (unplug -> UNPLUGGED 
+                  | turn_off -> POWER_OFF
+                  | lock_unit -> LOCKED_PUMP) 
 ),
 
 UNLOCKED_PUMP = 
 (
-                   system_powers_off -> PUMP |
-                   turn_off -> PUMP |
-                   lock_unit -> LOCKED_PUMP
+                     unplug -> UNPLUGGED 
+                  | turn_off -> POWER_OFF
+                  | lock_unit -> LOCKED_PUMP
 ),
 
 LOCKED_PUMP = 
 (
-                    system_powers_off -> PUMP |
-                    turn_off -> PUMP |
-                    unlock_unit -> UNLOCKED_PUMP 
+                    unplug -> UNPLUGGED 
+                  | turn_off -> POWER_OFF
+                  | unlock_unit -> UNLOCKED_PUMP 
 ).
 
-LINE = (start_lines -> UNLOCKED_INITIAL_LINE |
-        system_powers_off -> LINE),
+LINE = (start_lines -> UNLOCKED_INITIAL_LINE),
 
 UNLOCKED_INITIAL_LINE = 
     (
     start_setup -> SETUP[ParamsNotSet][LineUnlocked][0] 
     |
-    system_powers_off -> LINE
+    unplug -> LINE
     |
     turn_off -> LINE
     |
@@ -174,7 +174,7 @@ UNLOCKED_INITIAL_LINE =
 
 LOCKED_INITIAL_LINE = 
 (
-    system_powers_off -> LINE
+    unplug -> LINE
     |
     turn_off -> LINE
     |
@@ -212,19 +212,16 @@ SETUP[params:ParamsStateT][lineLock:LineLockStateT][dispenseType:DispenseSetting
     when (lineLock == LineLocked)
         erase_and_unlock_line -> SETUP[params][LineUnlocked][dispenseType]
     |
-    system_powers_off -> LINE
-    |
-    turn_off -> LINE
+    unplug -> LINE |
+    turn_off -> LINE 
 ),
 
 //checks if the amount entered is dangerous for bolus or main meds
 DANGEROUS_AMOUNT_CHECK_START[dispenseType:DispenseType] = 
 (
-  check_dangerous_amount -> DANGEROUS_AMOUNT_CHECK_RESULT[dispenseType] 
-  |
-  system_powers_off -> LINE
-  |
-  turn_off -> LINE
+  check_dangerous_amount -> DANGEROUS_AMOUNT_CHECK_RESULT[dispenseType] |
+  unplug -> LINE |
+  turn_off -> LINE 
 ),
 
 //returns the result of the check for dangerous amounts (works for bolus or main meds)
@@ -232,8 +229,8 @@ DANGEROUS_AMOUNT_CHECK_RESULT[dispenseType:DispenseType] =
 (
   amount_is_dangerous -> DOUBLE_CHECK_AMOUNT[dispenseType]|
   amount_is_safe -> LINE_DISPENSE[UnitUnlocked][dispenseType] |
-  system_powers_off -> LINE |
-  turn_off -> LINE
+  unplug -> LINE |
+  turn_off -> LINE 
 ),
 
 //allows the user to confirm entering a dangerous amount (works for bolus or main meds)
@@ -241,7 +238,7 @@ DOUBLE_CHECK_AMOUNT[dispenseType:DispenseType] =
 (
    accept ->  LINE_DISPENSE[UnitUnlocked][dispenseType]|
    decline -> SETUP[ParamsNotSet][LineUnlocked][dispenseType] |
-   system_powers_off -> LINE |
+   unplug -> LINE |
    turn_off -> LINE
 ),
 
@@ -253,7 +250,7 @@ DOUBLE_CHECK_AMOUNT[dispenseType:DispenseType] =
 //
 LINE_DISPENSE[unitLock:UnitLockStateT][dispenseType:DispenseType] =
 (
-    system_powers_off -> LINE
+    unplug -> LINE
     |
     turn_off -> LINE
     |
@@ -269,9 +266,9 @@ LINE_DISPENSE[unitLock:UnitLockStateT][dispenseType:DispenseType] =
     when (unitLock == UnitLocked)
         unlock_unit -> LINE_DISPENSE[UnitUnlocked][dispenseType]
     |
-    when (dispenseType == 2)dispense_main_med -> LINE_DISPENSE[unitLock][dispenseType]
+    when (dispenseType == 2)dispense_main_med_flow -> LINE_DISPENSE[unitLock][dispenseType]
     |
-    when (dispenseType == 1)dispense_bolus_med -> LINE_DISPENSE[unitLock][dispenseType]
+    when (dispenseType == 1)dispense_bolus_med_flow -> LINE_DISPENSE[unitLock][dispenseType]
     |
     flow_blocked -> display_error -> sound_alarm -> LINE_BLOCKED[unitLock][AlarmActivated][dispenseType]
     |
@@ -283,10 +280,9 @@ LINE_DISPENSE[unitLock:UnitLockStateT][dispenseType:DispenseType] =
 //
 MEDICINE_EMPTY_ERROR_STATE[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseType:DispenseType] =
 (
-    
-    turn_off -> LINE
+    unplug -> LINE
     |
-    system_powers_off -> LINE
+    turn_off -> LINE
     |
     when (alarm == AlarmActivated)
         sound_alarm -> MEDICINE_EMPTY_ERROR_STATE[unitLock][alarm][dispenseType]
@@ -303,8 +299,8 @@ MEDICINE_EMPTY_ERROR_STATE[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseT
 //
 LINE_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseType:DispenseType] =
 (
-    system_powers_off -> LINE 
-    |   
+    unplug -> LINE
+    |
     turn_off -> LINE
     |
     when (alarm == AlarmActivated)
@@ -316,63 +312,17 @@ LINE_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseType:DispenseTy
     flow_unblocked -> LINE_DISPENSE[unitLock][dispenseType]
 ).
 
-progress IT_WILL_EVENTUALLY_PUMP_MEDICINE_AFTER_TURNED_ON = {turn_on,dispense_main_med_flow}
-progress AFTER_PUMPING_MEDICINE_YOU_WILL_EVENTUALLY_RUN_OUT_OF_MED = {dispense_main_med_flow,medicine_is_empty }
-
-const PluggedIn = 0
-const UnPlugged = 1
-range PlugState = PluggedIn .. UnPlugged
-
-const WallPowerWorking = 0
-const WallPowerNotWorking = 1
-range WallPowerState = WallPowerWorking ..WallPowerNotWorking
-
-POWER_SYSTEM = (plug_in -> WALL_POWER |
-                unsuccessful_power_check -> POWER_SYSTEM),
 
 
-WALL_POWER = (
-  unplug -> BATTERY_POWER[UnPlugged][WallPowerWorking]  |
-  unplug -> battery_failure -> system_powers_off -> RESTORE_POWER[UnPlugged][WallPowerWorking] |
-  wall_power_loss -> BATTERY_POWER[PluggedIn][WallPowerNotWorking] |
-  wall_power_loss -> battery_failure -> system_powers_off -> RESTORE_POWER[PluggedIn][WallPowerNotWorking] |
-  successful_power_check -> WALL_POWER
-),
+property CONFIRM_BEFORE_DISPENSE = (
+    confirm_settings -> 
+        (dispense_main_med_flow -> CONFIRM_BEFORE_DISPENSE
+         |
+         dispense_bolus_med_flow -> CONFIRM_BEFORE_DISPENSE)
+).
+|| CHECK_LINE = (CONFIRM_BEFORE_DISPENSE || LINE).
 
-BATTERY_POWER[plugState:PlugState][currentWallPowerState:WallPowerState] = (
-  when (plugState == UnPlugged && currentWallPowerState == WallPowerWorking) 
-          plug_in -> WALL_POWER |
-  when (plugState == UnPlugged && currentWallPowerState == WallPowerNotWorking) 
-          plug_in -> BATTERY_POWER[PluggedIn][WallPowerNotWorking] |
-  when (plugState == UnPlugged && currentWallPowerState == WallPowerNotWorking) 
-          wall_power_restored -> BATTERY_POWER[UnPlugged][WallPowerWorking]|
-  when (plugState == PluggedIn && currentWallPowerState == WallPowerNotWorking) 
-          wall_power_restored -> WALL_POWER |
-  when (plugState == PluggedIn) 
-     unplug -> BATTERY_POWER[UnPlugged][currentWallPowerState] |
-  battery_failure -> system_powers_off -> RESTORE_POWER[plugState][currentWallPowerState] |
-  successful_power_check -> BATTERY_POWER[plugState][currentWallPowerState]
-  
-),
+|| INFUSION_PUMP = (PUMP || l[1..NumLines]:CHECK_LINE)/
+{unplug/l.[1..NumLines].unplug,turn_off/l.[1..NumLines].turn_off,start_lines/l.[1..NumLines].start_lines,
+lock_unit/l.[1..NumLines].lock_unit, unlock_unit/l.[1..NumLines].unlock_unit}.
 
-RESTORE_POWER[plugState:PlugState][currentWallPowerState:WallPowerState] = (
-    when(plugState == UnPlugged && currentWallPowerState == WallPowerNotWorking) 
-        plug_in -> RESTORE_POWER[PluggedIn][currentWallPowerState] |
-    when(plugState == UnPlugged && currentWallPowerState == WallPowerNotWorking) 
-        wall_power_restored -> RESTORE_POWER[UnPlugged][WallPowerWorking] |
-    when(plugState == UnPlugged && currentWallPowerState == WallPowerWorking) 
-        plug_in -> WALL_POWER |
-    when(plugState == PluggedIn && currentWallPowerState == WallPowerNotWorking)
-        wall_power_restored -> WALL_POWER |
-    when (plugState == PluggedIn) 
-        unplug -> RESTORE_POWER[UnPlugged][currentWallPowerState] |
-    unsuccessful_power_check -> RESTORE_POWER[plugState][currentWallPowerState]
-  ).
-
-
-|| INFUSION_PUMP = (PUMP || l[1..NumLines]:LINE || POWER_SYSTEM)/
-{system_powers_off/l.[1..NumLines].system_powers_off,
-turn_off/l.[1..NumLines].turn_off,
-start_lines/l.[1..NumLines].start_lines,
-lock_unit/l.[1..NumLines].lock_unit, 
-unlock_unit/l.[1..NumLines].unlock_unit}.
