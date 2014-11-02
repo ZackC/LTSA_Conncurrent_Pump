@@ -18,17 +18,27 @@
 // animation of this model.
 //
 menu UserControlMenu = {
-    change_rate, clear_rate, confirm_settings, connect_set,
-     enter_value, erase_and_unlock_line,
-    flow_unblocked, lock_unit, plug_in, press_cancel, 
-    press_set_for_main, press_set_for_bolus, set_rate, silence_alarm, turn_off, unlock_unit, unplug,
-    flow_blocked, accept_self_test, decline_self_test, turn_on, replace_medicine,
-    unlock_line_and_change_dispense_type
+     //Pump interactions
+     plug_in, unplug, turn_on, turn_off,  accept_self_test, decline_self_test, lock_unit, unlock_unit,
+
+    //Line interactions
+    l[1..NumLines].set_rate, l.[1..NumLines].change_rate, l.[1..NumLines].enter_value, l.[1..NumLines].clear_rate, 
+    l.[1..NumLines].confirm_settings, l.[1..NumLines].connect_set,
+    l.[1..NumLines].erase_and_unlock_line,
+    l.[1..NumLines].flow_unblocked, 
+    l.[1..NumLines].press_cancel, 
+    l.[1..NumLines].press_set_for_main, l.[1..NumLines].press_set_for_bolus,  l.[1..NumLines].silence_alarm,   
+    l.[1..NumLines].flow_blocked, l.[1..NumLines].start_setup,
+    l.[1..NumLines].replace_medicine,
+    l.[1..NumLines].unlock_line_and_change_dispense_type
 }
 
 //======================
 // Constants and Ranges
 //======================
+
+
+const NumLines = 2
 
 //
 // States of the pump alarm
@@ -87,7 +97,8 @@ UNPLUGGED =
 
 POWER_OFF = 
 (
-    turn_on -> UPDATE 
+    turn_on -> UPDATE |
+    unplug -> UNPLUGGED
     
 ),
 
@@ -103,7 +114,7 @@ UPDATE =
 SELF_TEST_DECISION =
 (
   accept_self_test -> SELF_TEST |
-  decline_self_test -> PUMP_DISPENSE |
+  decline_self_test -> START_PUMP_DISPENSE |
   unplug -> UNPLUGGED |
   turn_off -> POWER_OFF
 ),
@@ -111,7 +122,7 @@ SELF_TEST_DECISION =
 //returns the result of the machine safety check
 SELF_TEST = 
 (
-   confirmed_self_test ->  PUMP_DISPENSE|
+   confirmed_self_test ->  START_PUMP_DISPENSE|
    failed_self_test -> display_error_pump -> sound_alarm_pump -> SELF_ERROR_STATE | 
    unplug -> UNPLUGGED |
    turn_off -> POWER_OFF
@@ -127,18 +138,47 @@ SELF_ERROR_STATE =
 ),
 
 
-PUMP_DISPENSE =
+START_PUMP_DISPENSE =
 (
    start_lines -> (unplug -> UNPLUGGED 
-                  | turn_off -> POWER_OFF) 
+                  | turn_off -> POWER_OFF
+                  | lock_unit -> LOCKED_PUMP) 
+),
+
+UNLOCKED_PUMP = 
+(
+                     unplug -> UNPLUGGED 
+                  | turn_off -> POWER_OFF
+                  | lock_unit -> LOCKED_PUMP
+),
+
+LOCKED_PUMP = 
+(
+                    unplug -> UNPLUGGED 
+                  | turn_off -> POWER_OFF
+                  | unlock_unit -> UNLOCKED_PUMP 
 ).
 
-LINE = (
+LINE = (start_lines -> UNLOCKED_INITIAL_LINE),
+
+UNLOCKED_INITIAL_LINE = 
+    (
+    start_setup -> SETUP[ParamsNotSet][LineUnlocked][0] 
+    |
     unplug -> LINE
     |
     turn_off -> LINE
     |
-    start_lines -> SETUP[ParamsNotSet][LineUnlocked][0]
+    lock_unit -> LOCKED_INITIAL_LINE
+    ),
+
+LOCKED_INITIAL_LINE = 
+(
+    unplug -> LINE
+    |
+    turn_off -> LINE
+    |
+    unlock_unit -> UNLOCKED_INITIAL_LINE
     ),
 
 //
@@ -171,6 +211,9 @@ SETUP[params:ParamsStateT][lineLock:LineLockStateT][dispenseType:DispenseSetting
     |
     when (lineLock == LineLocked)
         erase_and_unlock_line -> SETUP[params][LineUnlocked][dispenseType]
+    |
+    unplug -> LINE |
+    turn_off -> LINE 
 ),
 
 //checks if the amount entered is dangerous for bolus or main meds
@@ -269,4 +312,8 @@ LINE_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseType:DispenseTy
     flow_unblocked -> LINE_DISPENSE[unitLock][dispenseType]
 ).
 
-|| INFUSION_PUMP = (PUMP || LINE).
+
+
+|| INFUSION_PUMP = (PUMP || l[1..NumLines]:LINE)/
+{unplug/l.[1..NumLines].unplug,turn_off/l.[1..NumLines].turn_off,start_lines/l.[1..NumLines].start_lines,
+lock_unit/l.[1..NumLines].lock_unit, unlock_unit/l.[1..NumLines].unlock_unit}.
