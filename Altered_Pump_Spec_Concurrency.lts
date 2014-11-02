@@ -316,8 +316,9 @@ LINE_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseType:DispenseTy
     flow_unblocked -> LINE_DISPENSE[unitLock][dispenseType]
 ).
 
-progress IT_WILL_EVENTUALLY_PUMP_MEDICINE_AFTER_TURNED_ON = {turn_on,dispense_main_med_flow}
-progress AFTER_PUMPING_MEDICINE_YOU_WILL_EVENTUALLY_RUN_OUT_OF_MED = {dispense_main_med_flow,medicine_is_empty }
+property IT_WILL_DISPLAY_AN_ERROR_AFTER_LINE_FAILURE = (flow_blocked -> display_error->IT_WILL_DISPLAY_AN_ERROR_AFTER_LINE_FAILURE 
+| medicine_is_empty -> display_error->IT_WILL_DISPLAY_AN_ERROR_AFTER_LINE_FAILURE).
+
 
 const PluggedIn = 0
 const UnPlugged = 1
@@ -369,8 +370,7 @@ RESTORE_POWER[plugState:PlugState][currentWallPowerState:WallPowerState] = (
     unsuccessful_power_check -> RESTORE_POWER[plugState][currentWallPowerState]
   ).
 
-
-|| INFUSION_PUMP = (PUMP || l[1..NumLines]:LINE || POWER_SYSTEM)/
+|| INFUSION_PUMP = (PUMP || l[1..NumLines]:LINE || POWER_SYSTEM || l[1..NumLines]:IT_WILL_DISPLAY_AN_ERROR_AFTER_LINE_FAILURE)/
 {system_powers_off/l.[1..NumLines].system_powers_off,
 turn_off/l.[1..NumLines].turn_off,
 start_lines/l.[1..NumLines].start_lines,
