@@ -1,0 +1,272 @@
+//  Group 9
+//  Authors: Zack Coker, Alex Duda, An Wu, Mauricio Soto-Gonzoles, and Shurui Zhou
+//
+// 17-651: FSP model of a simple infusion pump
+//
+// ASSUMPTIONS
+// - The user can choose, in the setup phase, which item of info to enter next.
+// - The simple enter_value action is a simple number pad where the user enters
+//   numeric values.
+// - There exist 'set' and 'cancel' buttons, which are the targets of press_set
+//   and press_cancel.
+// - When the user turns the unit off, the unit will be in a state as if it was
+//   just plugged in.
+//
+
+//
+// Set of actions that the user of the LTSA tool can control in an
+// animation of this model.
+//
+menu UserControlMenu = {
+    change_rate, clear_rate, confirm_settings, connect_set,
+     enter_value, erase_and_unlock_line,
+    flow_unblocked, lock_unit, plug_in, press_cancel, 
+    press_set_for_main, press_set_for_bolus, set_rate, silence_alarm, turn_off, unlock_unit, unplug,
+    flow_blocked, accept_self_test, decline_self_test, turn_on, replace_medicine,
+    unlock_line_and_change_dispense_type
+}
+
+//======================
+// Constants and Ranges
+//======================
+
+//
+// States of the pump alarm
+//
+const AlarmActivated = 0    // Alarm currently active
+const AlarmSilenced  = 1    // Alarm currently inactive
+
+range AlarmStateT = AlarmActivated .. AlarmSilenced
+
+//
+// States of the pump settings
+//
+const ParamsNotSet = 2    // pump parameters not set yet
+const ParamsSet    = 3    // pump parameters already set
+
+range ParamsStateT = ParamsNotSet .. ParamsSet
+
+//
+// Locked/unlocked states of a line with respect to a pump channel
+//
+const LineUnlocked = 4  // line not locked into a pump channel 
+const LineLocked   = 5  // line locked into a pump channel
+
+range LineLockStateT = LineUnlocked .. LineLocked
+
+//
+// Locked/unlocked states of the pump unit
+//
+const UnitUnlocked = 6  // the keypad of the pump is not locked
+const UnitLocked   = 7  // the keypad of the pump is locked
+
+range UnitLockStateT = UnitUnlocked .. UnitLocked
+
+//The different dispensing states of the machine
+//0 is not dispensing
+//1 is dispensing a bolus
+//2 is for dispensing the main meds
+const NO_MEDICINE = 0
+const BOLUS = 1
+const MAIN_MEDS = 2
+//for states that can be dispensing or not dispensing
+range DispenseSettings = NO_MEDICINE..MAIN_MEDS
+//for states that have to have a dispensing type
+range DispenseType = BOLUS .. MAIN_MEDS
+
+//=====================
+// Process Definitions
+//=====================
+
+PUMP = UNPLUGGED,
+
+UNPLUGGED =
+(
+    plug_in -> POWER_OFF
+),
+
+POWER_OFF = 
+(
+    turn_on -> UPDATE 
+    
+),
+
+//attempt to update the soft-check library and continue whether the update passes or fails
+UPDATE = 
+(
+    attempt_library_update -> SELF_TEST_DECISION |
+    unplug -> UNPLUGGED |
+    turn_off -> POWER_OFF
+),
+
+//allows the user to select if the machine safety check occurs
+SELF_TEST_DECISION =
+(
+  accept_self_test -> SELF_TEST |
+  decline_self_test -> PUMP_DISPENSE |
+  unplug -> UNPLUGGED |
+  turn_off -> POWER_OFF
+),
+
+//returns the result of the machine safety check
+SELF_TEST = 
+(
+   confirmed_self_test ->  PUMP_DISPENSE|
+   failed_self_test -> display_error_pump -> sound_alarm_pump -> SELF_ERROR_STATE | 
+   unplug -> UNPLUGGED |
+   turn_off -> POWER_OFF
+),
+
+//the error state of the safety check - rings the alarm until the machine is turned off
+SELF_ERROR_STATE =
+(
+    sound_alarm_pump -> SELF_ERROR_STATE |
+    unplug -> UNPLUGGED |
+    turn_off -> POWER_OFF 
+    
+),
+
+
+PUMP_DISPENSE =
+(
+   start_lines -> (unplug -> UNPLUGGED 
+                  | turn_off -> POWER_OFF) 
+).
+
+LINE = (
+    unplug -> LINE
+    |
+    turn_off -> LINE
+    |
+    start_lines -> SETUP[ParamsNotSet][LineUnlocked][0]
+    ),
+
+//
+// Pump in setup mode:
+// - Once required pump parameters (just rate in this case) are set,
+//   physical connections can be made and line can be locked
+//
+SETUP[params:ParamsStateT][lineLock:LineLockStateT][dispenseType:DispenseSettings] = 
+(
+  //  unplug -> UNPLUGGED
+  //  |
+  //  turn_off -> POWER_OFF
+  //  |
+    when (params == ParamsNotSet && lineLock == LineUnlocked)
+        set_rate -> enter_value ->
+            (press_set_for_bolus -> SETUP[ParamsSet][lineLock][1]
+             |
+             press_set_for_main -> SETUP[ParamsSet][lineLock][2]
+             |
+             press_cancel -> SETUP[ParamsNotSet][lineLock][0])
+    |
+    when (params == ParamsSet && lineLock == LineUnlocked)
+        clear_rate -> SETUP[ParamsNotSet][lineLock][0]
+    |
+    when (params == ParamsSet && lineLock == LineUnlocked)
+        connect_set -> purge_air -> lock_line -> SETUP[params][LineLocked][dispenseType]
+    |
+    when (lineLock == LineLocked && dispenseType != 0)
+        confirm_settings -> DANGEROUS_AMOUNT_CHECK_START[dispenseType]
+    |
+    when (lineLock == LineLocked)
+        erase_and_unlock_line -> SETUP[params][LineUnlocked][dispenseType]
+),
+
+//checks if the amount entered is dangerous for bolus or main meds
+DANGEROUS_AMOUNT_CHECK_START[dispenseType:DispenseType] = 
+(
+  check_dangerous_amount -> DANGEROUS_AMOUNT_CHECK_RESULT[dispenseType] |
+  unplug -> LINE |
+  turn_off -> LINE 
+),
+
+//returns the result of the check for dangerous amounts (works for bolus or main meds)
+DANGEROUS_AMOUNT_CHECK_RESULT[dispenseType:DispenseType] = 
+(
+  amount_is_dangerous -> DOUBLE_CHECK_AMOUNT[dispenseType]|
+  amount_is_safe -> LINE_DISPENSE[UnitUnlocked][dispenseType] |
+  unplug -> LINE |
+  turn_off -> LINE 
+),
+
+//allows the user to confirm entering a dangerous amount (works for bolus or main meds)
+DOUBLE_CHECK_AMOUNT[dispenseType:DispenseType] = 
+(
+   accept ->  LINE_DISPENSE[UnitUnlocked][dispenseType]|
+   decline -> SETUP[ParamsNotSet][LineUnlocked][dispenseType] |
+   unplug -> LINE |
+   turn_off -> LINE
+),
+
+
+//
+// Line in infusion mode:
+// - Line is dispensing.
+// - Errors could occur with the pump (e.g., line became pinched or plugged)
+//
+LINE_DISPENSE[unitLock:UnitLockStateT][dispenseType:DispenseType] =
+(
+    unplug -> LINE
+    |
+    turn_off -> LINE
+    |
+    when (unitLock == UnitUnlocked)
+        change_rate -> SETUP[ParamsSet][LineLocked][dispenseType]
+    |
+    when (unitLock == UnitUnlocked)
+        unlock_line_and_change_dispense_type -> SETUP[ParamsNotSet][LineUnlocked][0]
+    |
+    when (unitLock == UnitUnlocked)
+        lock_unit -> LINE_DISPENSE[UnitLocked][dispenseType]
+    |
+    when (unitLock == UnitLocked)
+        unlock_unit -> LINE_DISPENSE[UnitUnlocked][dispenseType]
+    |
+    when (dispenseType == 2)dispense_main_med_flow -> LINE_DISPENSE[unitLock][dispenseType]
+    |
+    when (dispenseType == 1)dispense_bolus_med_flow -> LINE_DISPENSE[unitLock][dispenseType]
+    |
+    flow_blocked -> display_error -> sound_alarm -> LINE_BLOCKED[unitLock][AlarmActivated][dispenseType]
+    |
+    medicine_is_empty -> display_error -> sound_alarm -> MEDICINE_EMPTY_ERROR_STATE[unitLock][AlarmActivated][dispenseType]
+),
+
+//
+// medicine empty (medication flow suspended)
+//
+MEDICINE_EMPTY_ERROR_STATE[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseType:DispenseType] =
+(
+    unplug -> LINE
+    |
+    turn_off -> LINE
+    |
+    when (alarm == AlarmActivated)
+        sound_alarm -> MEDICINE_EMPTY_ERROR_STATE[unitLock][alarm][dispenseType]
+    |
+    when (alarm == AlarmActivated)
+        silence_alarm -> MEDICINE_EMPTY_ERROR_STATE[unitLock][AlarmSilenced][dispenseType]
+    |
+    replace_medicine -> LINE_DISPENSE[unitLock][dispenseType]
+),
+
+
+//
+// Pump stuck (medication flow suspended)
+//
+LINE_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseType:DispenseType] =
+(
+    unplug -> LINE
+    |
+    turn_off -> LINE
+    |
+    when (alarm == AlarmActivated)
+        sound_alarm -> LINE_BLOCKED[unitLock][alarm][dispenseType]
+    |
+    when (alarm == AlarmActivated)
+        silence_alarm -> LINE_BLOCKED[unitLock][AlarmSilenced][dispenseType]
+    |
+    flow_unblocked -> LINE_DISPENSE[unitLock][dispenseType]
+).
+
+|| INFUSION_PUMP = (PUMP || LINE).
