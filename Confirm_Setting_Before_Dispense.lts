@@ -312,15 +312,24 @@ LINE_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseType:DispenseTy
     flow_unblocked -> LINE_DISPENSE[unitLock][dispenseType]
 ).
 
+property CONFIRM_REQUIRED = (
+    confirm_settings -> CONFIRM_OPTIONAL
+),
 
-
-property CONFIRM_BEFORE_DISPENSE = (
-    confirm_settings -> 
-        (dispense_main_med_flow -> CONFIRM_BEFORE_DISPENSE
-         |
-         dispense_bolus_med_flow -> CONFIRM_BEFORE_DISPENSE)
+CONFIRM_OPTIONAL = (
+	confirm_settings -> CONFIRM_OPTIONAL
+	|
+	dispense_main_med_flow -> CONFIRM_OPTIONAL
+	|
+	dispense_bolus_med_flow -> CONFIRM_OPTIONAL
+	|
+	turn_off -> CONFIRM_REQUIRED
+	|
+	unplug -> CONFIRM_REQUIRED
 ).
-|| CHECK_LINE = (CONFIRM_BEFORE_DISPENSE || LINE).
+
+
+|| CHECK_LINE = (CONFIRM_REQUIRED || LINE).
 
 || INFUSION_PUMP = (PUMP || l[1..NumLines]:CHECK_LINE)/
 {unplug/l.[1..NumLines].unplug,turn_off/l.[1..NumLines].turn_off,start_lines/l.[1..NumLines].start_lines,
