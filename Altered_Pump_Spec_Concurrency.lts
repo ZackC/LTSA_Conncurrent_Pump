@@ -22,7 +22,7 @@ menu UserControlMenu = {
      plug_in, unplug, turn_on, turn_off,  accept_self_test, decline_self_test, lock_unit, unlock_unit,
 
     //Line interactions
-    l[1..NumLines].set_rate, l.[1..NumLines].change_rate, l.[1..NumLines].enter_value, l.[1..NumLines].clear_rate, 
+    l.[1..NumLines].set_rate, l.[1..NumLines].change_rate, l.[1..NumLines].enter_value, l.[1..NumLines].clear_rate, 
     l.[1..NumLines].confirm_settings, l.[1..NumLines].connect_set,
     l.[1..NumLines].erase_and_unlock_line,
     l.[1..NumLines].flow_unblocked, 
