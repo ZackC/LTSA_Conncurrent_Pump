@@ -319,6 +319,7 @@ LINE_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseType:DispenseTy
 property IT_WILL_DISPLAY_AN_ERROR_AFTER_LINE_FAILURE = (flow_blocked -> display_error->IT_WILL_DISPLAY_AN_ERROR_AFTER_LINE_FAILURE 
 | medicine_is_empty -> display_error->IT_WILL_DISPLAY_AN_ERROR_AFTER_LINE_FAILURE).
 
+progress IT_WILL_PUMP_MEDICINE_AFTER_BEING_TURNED_ON = {attempt_turn_on,dispense_main_med}
 
 const PluggedIn = 0
 const UnPlugged = 1
