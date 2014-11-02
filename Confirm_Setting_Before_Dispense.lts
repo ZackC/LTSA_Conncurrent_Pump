@@ -315,9 +315,10 @@ LINE_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseType:DispenseTy
 
 
 property CONFIRM_BEFORE_DISPENSE = (
-    confirm_settings -> dispense_main_med_flow -> CONFIRM_BEFORE_DISPENSE
-    |
-    confirm_settings -> dispense_bolus_med_flow -> CONFIRM_BEFORE_DISPENSE
+    confirm_settings -> 
+        (dispense_main_med_flow -> CONFIRM_BEFORE_DISPENSE
+         |
+         dispense_bolus_med_flow -> CONFIRM_BEFORE_DISPENSE)
 ).
 || CHECK_LINE = (CONFIRM_BEFORE_DISPENSE || LINE).
 
