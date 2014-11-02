@@ -312,6 +312,7 @@ LINE_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseType:DispenseTy
     flow_unblocked -> LINE_DISPENSE[unitLock][dispenseType]
 ).
 
+progress IT_WILL_EVENTUALLY_PUMP_MEDICINE_AFTER_TURNED_ON = {turn_on,dispense_main_med_flow}
 
 
 || INFUSION_PUMP = (PUMP || l[1..NumLines]:LINE)/
