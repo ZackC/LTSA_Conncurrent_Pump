@@ -1,0 +1,160 @@
+//##############################################################
+// Deadlock
+//##############################################################
+
+
+RESOURCE = (get->put->RESOURCE).
+
+P = (lib_composition.get
+     ->update_composition
+     ->lib_amount.get
+     ->update_amount
+     ->lib_amount.put->lib_composition.put
+     ->P).
+
+Q = (lib_amount.get
+     ->update_amount
+     ->lib_composition.get
+     ->update_composition
+     ->lib_composition.put->lib_amount.put
+     ->Q).
+
+||SYS = (p:P||q:Q
+     ||{p,q}::lib_composition:RESOURCE
+     ||{p,q}::lib_amount:RESOURCE
+     ).
+
+
+Compiled: P
+Compiled: Q
+Compiled: RESOURCE
+Composition:
+SYS = p:P || q:Q || {p,q}::lib_composition:RESOURCE || {p,q}::lib_amount:RESOURCE
+State Space:
+ 6 * 6 * 2 * 2 = 2 ** 8
+Analysing...
+Depth 5 -- States: 12 Transitions: 17 Memory used: 6212K
+Trace to DEADLOCK:
+        p.lib_composition.get
+        p.update_composition
+        q.lib_amount.get
+        q.update_amount
+Analysed in: 1ms
+
+
+//##############################################################
+// No "Circular Wait"
+//##############################################################
+
+RESOURCE = (get->put->RESOURCE).
+
+P = (lib_composition.get
+     ->update_composition
+     ->lib_amount.get
+     ->update_amount
+     ->lib_amount.put->lib_composition.put
+     ->P).
+
+Q = (lib_composition.get
+     ->update_composition
+     ->lib_amount.get
+     ->update_amount
+     ->lib_amount.put->lib_composition.put
+     ->Q).
+
+||SYS = (p:P||q:Q
+     ||{p,q}::lib_composition:RESOURCE
+     ||{p,q}::lib_amount:RESOURCE
+     ).
+
+
+Compiled: P
+Compiled: Q
+Compiled: RESOURCE
+Composition:
+SYS = p:P || q:Q || {p,q}::lib_composition:RESOURCE || {p,q}::lib_amount:RESOURCE
+State Space:
+ 6 * 6 * 2 * 2 = 2 ** 8
+Analysing...
+Depth 6 -- States: 11 Transitions: 12 Memory used: 6781K
+No deadlocks/errors
+Analysed in: 0ms
+
+
+
+//##############################################################
+// No "Hold & Wait"
+//##############################################################
+
+RESOURCE = (get->put->RESOURCE).
+
+P = (lib_composition.get
+         ->update_composition
+         ->lib_composition.put
+         ->lib_amount.get
+     ->update_amount
+     ->lib_amount.put
+     ->P).
+
+Q = (lib_amount.get
+     ->update_amount
+     ->lib_amount.put
+     ->lib_composition.get
+     ->update_composition
+     ->lib_composition.put
+     ->Q).
+
+||SYS = (p:P||q:Q
+     ||{p,q}::lib_composition:RESOURCE
+     ||{p,q}::lib_amount:RESOURCE
+     ).
+
+
+
+Compiled: P
+Compiled: Q
+Compiled: RESOURCE
+Composition:
+SYS = p:P || q:Q || {p,q}::lib_composition:RESOURCE || {p,q}::lib_amount:RESOURCE
+State Space:
+ 6 * 6 * 2 * 2 = 2 ** 8
+Analysing...
+Depth 11 -- States: 28 Transitions: 48 Memory used: 6975K
+No deadlocks/errors
+Analysed in: 0ms
+
+
+
+//##############################################################
+// No "Mutual Exclusion"
+//##############################################################
+
+RESOURCE = RESOURCE.
+
+P = (update_composition
+     ->update_amount
+     ->P).
+
+Q = (update_amount
+     ->update_composition
+     ->Q).
+
+||SYS = (p:P||q:Q
+     ||{p,q}::lib_composition:RESOURCE
+     ||{p,q}::lib_amount:RESOURCE
+     ).
+
+
+
+Compiled: P
+Compiled: Q
+Compiled: RESOURCE
+Composition:
+SYS = p:P || q:Q || {p,q}::lib_composition:RESOURCE || {p,q}::lib_amount:RESOURCE
+State Space:
+ 2 * 2 * 1 * 1 = 2 ** 2
+Analysing...
+Depth 3 -- States: 4 Transitions: 8 Memory used: 7969K
+No deadlocks/errors
+Analysed in: 2ms
+
