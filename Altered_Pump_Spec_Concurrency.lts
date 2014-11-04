@@ -371,7 +371,7 @@ RESTORE_POWER[plugState:PlugState][currentWallPowerState:WallPowerState] = (
     unsuccessful_power_check -> RESTORE_POWER[plugState][currentWallPowerState]
   ).
 
-assert NO_PUMP_AFTER_BATTERY_FAILURE = [](battery_failure -> <>[]!(exists [i:1..NumLines](l.[i].dispense_main_med || l.[i].dispense_bolus_med)))
+assert NO_PUMP_AFTER_BATTERY_FAILURE = [](battery_failure -> !<>(exists [i:1..NumLines](l.[i].dispense_main_med || l.[i].dispense_bolus_med)))
 
 || INFUSION_PUMP = (PUMP || l[1..NumLines]:LINE || POWER_SYSTEM || l[1..NumLines]:IT_WILL_DISPLAY_AN_ERROR_AFTER_LINE_FAILURE)/
 {system_powers_off/l.[1..NumLines].system_powers_off,
