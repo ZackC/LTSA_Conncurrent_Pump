@@ -5,14 +5,13 @@
 //
 // ASSUMPTIONS
 // - The user can choose, in the setup phase, which item of info to enter next.
-// - The simple enter_value action is a simple number pad where the user enters
+// - The s1imple enter_value action is a simple number pad where the user enters
 //   numeric values.
 // - There exist 'set' and 'cancel' buttons, which are the targets of press_set
 //   and press_cancel.
 // - When the user turns the unit off, the unit will be in a state as if it was
 //   just plugged in.
 //
-
 //
 // Set of actions that the user of the LTSA tool can control in an
 // animation of this model.
@@ -95,8 +94,8 @@ POWER_OFF =
 (
     attempt_turn_on -> (successful_power_check -> UPDATE |
                 unsuccessful_power_check -> POWER_OFF |
-                system_powers_off -> PUMP) |
-    system_powers_off -> PUMP |
+                system_powers_off_from_battery_failure -> PUMP) |
+    system_powers_off_from_battery_failure -> PUMP |
     turn_off -> PUMP
     
 ),
@@ -105,7 +104,7 @@ POWER_OFF =
 UPDATE = 
 (
     attempt_library_update -> SELF_TEST_DECISION |
-    system_powers_off -> PUMP |
+    system_powers_off_from_battery_failure -> PUMP |
     turn_off -> PUMP
 ),
 
@@ -114,7 +113,7 @@ SELF_TEST_DECISION =
 (
   accept_self_test -> SELF_TEST |
   decline_self_test -> START_PUMP_DISPENSE |
-  system_powers_off -> PUMP |
+  system_powers_off_from_battery_failure -> PUMP |
     turn_off -> PUMP
 ),
 
@@ -123,7 +122,7 @@ SELF_TEST =
 (
    confirmed_self_test ->  START_PUMP_DISPENSE|
    failed_self_test -> display_error_pump -> sound_alarm_pump -> SELF_ERROR_STATE | 
-   system_powers_off -> PUMP |
+   system_powers_off_from_battery_failure -> PUMP |
     turn_off -> PUMP
 ),
 
@@ -131,7 +130,7 @@ SELF_TEST =
 SELF_ERROR_STATE =
 (
     sound_alarm_pump -> SELF_ERROR_STATE |
-    system_powers_off -> PUMP |
+    system_powers_off_from_battery_failure -> PUMP |
     turn_off -> PUMP 
     
 ),
@@ -139,33 +138,33 @@ SELF_ERROR_STATE =
 
 START_PUMP_DISPENSE =
 (
-   start_lines -> (system_powers_off -> PUMP |
+   start_lines -> (system_powers_off_from_battery_failure -> PUMP |
                     turn_off -> PUMP |
                    lock_unit -> LOCKED_PUMP) 
 ),
 
 UNLOCKED_PUMP = 
 (
-                   system_powers_off -> PUMP |
+                   system_powers_off_from_battery_failure -> PUMP |
                    turn_off -> PUMP |
                    lock_unit -> LOCKED_PUMP
 ),
 
 LOCKED_PUMP = 
 (
-                    system_powers_off -> PUMP |
+                    system_powers_off_from_battery_failure -> PUMP |
                     turn_off -> PUMP |
                     unlock_unit -> UNLOCKED_PUMP 
 ).
 
 LINE = (start_lines -> UNLOCKED_INITIAL_LINE |
-        system_powers_off -> LINE),
+        system_powers_off_from_battery_failure -> LINE),
 
 UNLOCKED_INITIAL_LINE = 
     (
     start_setup -> SETUP[ParamsNotSet][LineUnlocked][0] 
     |
-    system_powers_off -> LINE
+    system_powers_off_from_battery_failure -> LINE
     |
     turn_off -> LINE
     |
@@ -174,7 +173,7 @@ UNLOCKED_INITIAL_LINE =
 
 LOCKED_INITIAL_LINE = 
 (
-    system_powers_off -> LINE
+    system_powers_off_from_battery_failure -> LINE
     |
     turn_off -> LINE
     |
@@ -212,7 +211,7 @@ SETUP[params:ParamsStateT][lineLock:LineLockStateT][dispenseType:DispenseSetting
     when (lineLock == LineLocked)
         erase_and_unlock_line -> SETUP[params][LineUnlocked][dispenseType]
     |
-    system_powers_off -> LINE
+    system_powers_off_from_battery_failure -> LINE
     |
     turn_off -> LINE
 ),
@@ -222,7 +221,7 @@ DANGEROUS_AMOUNT_CHECK_START[dispenseType:DispenseType] =
 (
   check_dangerous_amount -> DANGEROUS_AMOUNT_CHECK_RESULT[dispenseType] 
   |
-  system_powers_off -> LINE
+  system_powers_off_from_battery_failure -> LINE
   |
   turn_off -> LINE
 ),
@@ -232,7 +231,7 @@ DANGEROUS_AMOUNT_CHECK_RESULT[dispenseType:DispenseType] =
 (
   amount_is_dangerous -> DOUBLE_CHECK_AMOUNT[dispenseType]|
   amount_is_safe -> LINE_DISPENSE[UnitUnlocked][dispenseType] |
-  system_powers_off -> LINE |
+  system_powers_off_from_battery_failure -> LINE |
   turn_off -> LINE
 ),
 
@@ -241,7 +240,7 @@ DOUBLE_CHECK_AMOUNT[dispenseType:DispenseType] =
 (
    accept ->  LINE_DISPENSE[UnitUnlocked][dispenseType]|
    decline -> SETUP[ParamsNotSet][LineUnlocked][dispenseType] |
-   system_powers_off -> LINE |
+   system_powers_off_from_battery_failure -> LINE |
    turn_off -> LINE
 ),
 
@@ -253,7 +252,7 @@ DOUBLE_CHECK_AMOUNT[dispenseType:DispenseType] =
 //
 LINE_DISPENSE[unitLock:UnitLockStateT][dispenseType:DispenseType] =
 (
-    system_powers_off -> LINE
+    system_powers_off_from_battery_failure -> LINE
     |
     turn_off -> LINE
     |
@@ -286,7 +285,7 @@ MEDICINE_EMPTY_ERROR_STATE[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseT
     
     turn_off -> LINE
     |
-    system_powers_off -> LINE
+    system_powers_off_from_battery_failure -> LINE
     |
     when (alarm == AlarmActivated)
         sound_alarm -> MEDICINE_EMPTY_ERROR_STATE[unitLock][alarm][dispenseType]
@@ -303,7 +302,7 @@ MEDICINE_EMPTY_ERROR_STATE[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseT
 //
 LINE_BLOCKED[unitLock:UnitLockStateT][alarm:AlarmStateT][dispenseType:DispenseType] =
 (
-    system_powers_off -> LINE 
+    system_powers_off_from_battery_failure -> LINE 
     |   
     turn_off -> LINE
     |
@@ -335,9 +334,9 @@ POWER_SYSTEM = (plug_in -> WALL_POWER |
 
 WALL_POWER = (
   unplug -> BATTERY_POWER[UnPlugged][WallPowerWorking]  |
-  unplug -> battery_failure -> system_powers_off -> RESTORE_POWER[UnPlugged][WallPowerWorking] |
+  unplug ->  system_powers_off_from_battery_failure -> RESTORE_POWER[UnPlugged][WallPowerWorking] |
   wall_power_loss -> BATTERY_POWER[PluggedIn][WallPowerNotWorking] |
-  wall_power_loss -> battery_failure -> system_powers_off -> RESTORE_POWER[PluggedIn][WallPowerNotWorking] |
+  wall_power_loss ->  system_powers_off_from_battery_failure -> RESTORE_POWER[PluggedIn][WallPowerNotWorking] |
   successful_power_check -> WALL_POWER
 ),
 
@@ -352,7 +351,7 @@ BATTERY_POWER[plugState:PlugState][currentWallPowerState:WallPowerState] = (
           wall_power_restored -> WALL_POWER |
   when (plugState == PluggedIn) 
      unplug -> BATTERY_POWER[UnPlugged][currentWallPowerState] |
-  battery_failure -> system_powers_off -> RESTORE_POWER[plugState][currentWallPowerState] |
+  system_powers_off_from_battery_failure -> RESTORE_POWER[plugState][currentWallPowerState] |
   successful_power_check -> BATTERY_POWER[plugState][currentWallPowerState]
   
 ),
@@ -371,10 +370,19 @@ RESTORE_POWER[plugState:PlugState][currentWallPowerState:WallPowerState] = (
     unsuccessful_power_check -> RESTORE_POWER[plugState][currentWallPowerState]
   ).
 
-assert NO_PUMP_AFTER_BATTERY_FAILURE = [](battery_failure -> !<>(exists [i:1..NumLines](l.[i].dispense_main_med || l.[i].dispense_bolus_med)))
+const False = 0
+const True = 1
+fluent NoPower = <{plug_in,wall_power_restored},{system_powers_off_from_battery_failure}> initially False
+
+assert NO_PUMP_AFTER_BATTERY_FAILURE = !<>(exists [i:1..NumLines](l.[i].dispense_main_med || l.[i].dispense_bolus_med) && !NoPower) 
+
+//assert NO_PUMP_AFTER_BATTERY_FAILURE = []((!NoPower) -> 
+//   !<>(exists [i:1..NumLines](l.[i].dispense_main_med || l.[i].dispense_bolus_med)))
+
+//assert NO_PUMP_AFTER_BATTERY_FAILURE = [](system_powers_off_from_battery_failure -> !<>(exists [i:1..NumLines](l.[i].dispense_main_med || l.[i].dispense_bolus_med)))
 
 || INFUSION_PUMP = (PUMP || l[1..NumLines]:LINE || POWER_SYSTEM || l[1..NumLines]:IT_WILL_DISPLAY_AN_ERROR_AFTER_LINE_FAILURE)/
-{system_powers_off/l.[1..NumLines].system_powers_off,
+{system_powers_off_from_battery_failure/l.[1..NumLines].system_powers_off_from_battery_failure,
 turn_off/l.[1..NumLines].turn_off,
 start_lines/l.[1..NumLines].start_lines,
 lock_unit/l.[1..NumLines].lock_unit, 
