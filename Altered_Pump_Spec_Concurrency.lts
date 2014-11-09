@@ -376,12 +376,20 @@ fluent NoPower = <{plug_in,wall_power_restored},{system_powers_off_from_battery_
 
 assert NO_PUMP_AFTER_BATTERY_FAILURE = !<>(exists [i:1..NumLines](l.[i].dispense_main_med || l.[i].dispense_bolus_med) && !NoPower) 
 
+property CONFIRM_TO_DISPENSE = ( confirm_settings -> CONFIRMED |
+                         system_powers_off_from_battery_failure -> CONFIRM_TO_DISPENSE |
+                         turn_off -> CONFIRM_TO_DISPENSE),
+CONFIRMED = (
+  confirm_settings -> CONFIRMED |
+  system_powers_off_from_battery_failure -> CONFIRM_TO_DISPENSE |
+  turn_off -> CONFIRM_TO_DISPENSE).
+
 //assert NO_PUMP_AFTER_BATTERY_FAILURE = []((!NoPower) -> 
 //   !<>(exists [i:1..NumLines](l.[i].dispense_main_med || l.[i].dispense_bolus_med)))
 
 //assert NO_PUMP_AFTER_BATTERY_FAILURE = [](system_powers_off_from_battery_failure -> !<>(exists [i:1..NumLines](l.[i].dispense_main_med || l.[i].dispense_bolus_med)))
 
-|| INFUSION_PUMP = (PUMP || l[1..NumLines]:LINE || POWER_SYSTEM || l[1..NumLines]:IT_WILL_DISPLAY_AN_ERROR_AFTER_LINE_FAILURE)/
+|| INFUSION_PUMP = (PUMP || l[1..NumLines]:LINE || POWER_SYSTEM || l[1..NumLines]:IT_WILL_DISPLAY_AN_ERROR_AFTER_LINE_FAILURE || CONFIRM_TO_DISPENSE)/
 {system_powers_off_from_battery_failure/l.[1..NumLines].system_powers_off_from_battery_failure,
 turn_off/l.[1..NumLines].turn_off,
 start_lines/l.[1..NumLines].start_lines,
