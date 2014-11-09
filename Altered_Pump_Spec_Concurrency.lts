@@ -87,7 +87,7 @@ range DispenseType = BOLUS .. MAIN_MEDS
 // Process Definitions
 //=====================
 
-PUMP = POWER_OFF,
+PUMP = (plug_in -> POWER_OFF),
 
 
 POWER_OFF = 
@@ -382,6 +382,7 @@ property CONFIRM_TO_DISPENSE = ( confirm_settings -> CONFIRMED |
 CONFIRMED = (
   confirm_settings -> CONFIRMED |
   system_powers_off_from_battery_failure -> CONFIRM_TO_DISPENSE |
+  dispense_main_med -> CONFIRMED |
   turn_off -> CONFIRM_TO_DISPENSE).
 
 //assert NO_PUMP_AFTER_BATTERY_FAILURE = []((!NoPower) -> 
@@ -389,7 +390,9 @@ CONFIRMED = (
 
 //assert NO_PUMP_AFTER_BATTERY_FAILURE = [](system_powers_off_from_battery_failure -> !<>(exists [i:1..NumLines](l.[i].dispense_main_med || l.[i].dispense_bolus_med)))
 
-|| INFUSION_PUMP = (PUMP || l[1..NumLines]:LINE || POWER_SYSTEM || l[1..NumLines]:IT_WILL_DISPLAY_AN_ERROR_AFTER_LINE_FAILURE || CONFIRM_TO_DISPENSE)/
+|| INFUSION_PUMP = (PUMP || l[1..NumLines]:LINE || POWER_SYSTEM 
+|| l[1..NumLines]:IT_WILL_DISPLAY_AN_ERROR_AFTER_LINE_FAILURE || l.[1]:CONFIRM_TO_DISPENSE ||
+l.[2]:CONFIRM_TO_DISPENSE)/
 {system_powers_off_from_battery_failure/l.[1..NumLines].system_powers_off_from_battery_failure,
 turn_off/l.[1..NumLines].turn_off,
 start_lines/l.[1..NumLines].start_lines,
