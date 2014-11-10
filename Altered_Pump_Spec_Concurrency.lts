@@ -376,24 +376,6 @@ fluent NoPower = <{plug_in,wall_power_restored},{system_powers_off_from_battery_
 
 assert NO_PUMP_AFTER_BATTERY_FAILURE = !<>(exists [i:1..NumLines](l.[i].dispense_main_med || l.[i].dispense_bolus_med) && !NoPower) 
 
-property RESUME_AFTER_FAILURE = (
-	system_powers_off_from_battery_failure -> AFTER_FAILURE
-	|
-	flow_blocked -> AFTER_FAILURE
-	|
-	medicine_is_empty -> AFTER_FAILURE
-	|
-	dispense_main_med -> RESUME_AFTER_FAILURE
-	|
-	dispense_bolus_med -> RESUME_AFTER_FAILURE
-),
-
-AFTER_FAILURE = (
-	dispense_main_med -> RESUME_AFTER_FAILURE
-	|
-	dispense_bolus_med -> RESUME_AFTER_FAILURE
-).
-
 property SOUND_ALARM_AFTER_FAILURE = (
 	display_error -> sound_alarm -> SOUND_ALARM_AFTER_FAILURE
 ).
@@ -414,8 +396,7 @@ CONFIRMED = (
 
 || INFUSION_PUMP = (PUMP || l[1..NumLines]:LINE || POWER_SYSTEM 
 || l[1..NumLines]:IT_WILL_DISPLAY_AN_ERROR_AFTER_LINE_FAILURE || l.[1]:CONFIRM_TO_DISPENSE ||
-l.[2]:CONFIRM_TO_DISPENSE || l.[1]:RESUME_AFTER_FAILURE || l.[2]:RESUME_AFTER_FAILURE || 
-l.[1]:SOUND_ALARM_AFTER_FAILURE || l.[2]:SOUND_ALARM_AFTER_FAILURE)/
+l.[2]:CONFIRM_TO_DISPENSE || l.[1]:SOUND_ALARM_AFTER_FAILURE || l.[2]:SOUND_ALARM_AFTER_FAILURE)/
 {system_powers_off_from_battery_failure/l.[1..NumLines].system_powers_off_from_battery_failure,
 turn_off/l.[1..NumLines].turn_off,
 start_lines/l.[1..NumLines].start_lines,
