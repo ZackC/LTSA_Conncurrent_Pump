@@ -391,6 +391,7 @@ CONFIRMED = (
   confirm_settings -> CONFIRMED |
   system_powers_off_from_battery_failure -> CONFIRM_TO_DISPENSE |
   dispense_main_med -> CONFIRMED |
+  dispense_bolus_med -> CONFIRMED |
   turn_off -> CONFIRM_TO_DISPENSE).
 
 //assert NO_PUMP_AFTER_BATTERY_FAILURE = []((!NoPower) -> 
