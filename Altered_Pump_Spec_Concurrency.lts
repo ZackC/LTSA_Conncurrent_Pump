@@ -376,6 +376,10 @@ fluent NoPower = <{plug_in,wall_power_restored},{system_powers_off_from_battery_
 
 assert NO_PUMP_AFTER_BATTERY_FAILURE = !<>(exists [i:1..NumLines](l.[i].dispense_main_med || l.[i].dispense_bolus_med) && !NoPower) 
 
+fluent AFTER_FAILURE = <{flow_blocked, medicine_is_empty, system_powers_off_from_battery_failure}, {turn_off, dispense_main_med, dispense_bolus_med}>
+
+assert RESUME_AFTER_FAILURE_POSSIBLE = [](AFTER_FAILURE -> <>(!turn_off && (dispense_main_med || dispense_bolus_med)))
+
 property SOUND_ALARM_AFTER_FAILURE = (
 	display_error -> sound_alarm -> SOUND_ALARM_AFTER_FAILURE
 ).
